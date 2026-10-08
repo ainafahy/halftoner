@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Halftoner</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <aside id="panel">
+    <header>
+      <div class="brand">
+        <h1>halftoner<span class="cursor">_</span></h1>
+        <span class="dim">dots · pixels · goo</span>
+      </div>
+      <nav class="links">
+        <button id="act-png" type="button" title="PNG, transparent background, 4× the design width. Settings are stored inside: open it from source to bring them back">png</button>
+        <button id="act-jpeg" type="button" title="JPEG on the background colour, 4× the design width. Settings are stored inside: open it from source to bring them back">jpeg</button>
+        <button id="act-svg" type="button" title="vector file, transparent background, at design width">svg</button>
+        <button id="act-kit" type="button" title="for websites: a zip with the source image, settings, engine and a React component that draws the effect live, sharp at any size">web kit</button>
+        <button id="act-txt" type="button" title="download the ascii as plain text" hidden>txt</button>
+        <span class="sep">|</span>
+        <button id="act-undo" type="button" title="undo (⌘Z)">undo</button>
+        <button id="act-redo" type="button" title="redo (⇧⌘Z)">redo</button>
+      </nav>
+    </header>
+
+    <fieldset class="section">
+      <legend>presets</legend>
+      <div id="presets" class="presets"></div>
+    </fieldset>
+
+    <fieldset class="section">
+      <legend>snapshots</legend>
+      <div class="snap-head">
+        <button id="act-pin" type="button" title="save the current settings with a thumbnail">+ pin current</button>
+        <span id="snap-empty" class="dim">pin looks to compare them later</span>
+      </div>
+      <div id="snaps" class="snaps"></div>
+    </fieldset>
+
+    <div id="controls"></div>
+
+    <p class="hint dim">drop or paste an image anywhere (a png / jpeg exported here restores its settings). hover a label for what it does, double-click it to reset. arrow keys nudge values (shift ×10). ⌘Z / ⇧⌘Z undo and redo.</p>
+  </aside>
+
+  <main id="stage">
+    <div class="stage-bar">
+      <div class="seg">
+        <button type="button" data-view="output">output</button>
+        <button type="button" data-view="split" title="drag across the image to compare the tone map and the output">split</button>
+        <button type="button" data-view="tone" title="the image after the tone settings, which the shapes are sized from">tone</button>
+      </div>
+      <div class="seg">
+        <button type="button" data-zoom="fit">fit</button>
+        <button type="button" data-zoom="1:1">1:1</button>
+      </div>
+    </div>
+    <canvas id="view"></canvas>
+    <div id="status"></div>
+    <div class="drop-hint">drop an image — or a png / jpeg exported by halftoner to restore its settings</div>
+  </main>
+
+  <script>
+    // Live reload while developing on localhost: polls file timestamps.
+    (function liveReload() {
+      if (!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) return;
+      const files = ['index.html', 'style.css', 'js/main.js', 'js/state.js', 'js/source.js', 'js/tone.js',
+        'js/lattice.js', 'js/geometry.js', 'js/render.js', 'js/ui.js', 'js/engine.js', 'js/worker.js',
+        'js/mask.js', 'js/mask-worker.js', 'js/runtime.js', 'js/kit.js', 'js/store.js', 'js/pngmeta.js'];
+      const last = {};
+      async function tick() {
+        for (const f of files) {
+          try {
+            const r = await fetch(f, { method: 'HEAD', cache: 'no-store' });
+            const mod = r.headers.get('last-modified');
+            if (last[f] && mod && last[f] !== mod) { location.reload(); return; }
+            last[f] = mod;
+          } catch (e) {}
+        }
+        setTimeout(tick, 800);
+      }
+      tick();
+    })();
+  </script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
