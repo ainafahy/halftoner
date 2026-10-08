@@ -18,7 +18,7 @@ The tool opens on a default design: the hands photo in `assets/default.jpg` with
 
 ## How it works
 
-1. **Source** — an image (choose, drag & drop, or paste) or typed text, converted to grayscale. Text picks from ~20 fonts (system + Google Fonts, loaded on first use) with weight and italic. For text, blank paper always stays empty: tone settings only shape the letters, never put dots on the background (and `invert` doesn't apply — use `ink: white/black` for light text).
+1. **Source** — an image (choose, drag & drop, or paste) or typed text, converted to grayscale. Transparent areas of a PNG / SVG / WebP never get ink, whatever the tone settings. Text and transparent images also get an automatic margin (sized from blur and cell) so the halftone's halo is never cropped; photos keep their exact frame. Text picks from ~20 fonts (system + Google Fonts, loaded on first use) with weight and italic. For text, blank paper always stays empty: tone settings only shape the letters, never put dots on the background (and `invert` doesn't apply — use `ink: white/black` for light text).
 2. **Subject** — optional in-browser background removal, so only the subject (or only the background) gets ink. `edge` softens the cut.
    - `people` — [MODNet](https://huggingface.co/Xenova/modnet) (Apache-2.0, ~26 MB), via Transformers.js, WebGPU when available.
    - `any object` — [U²-Net-p](https://huggingface.co/BritishWerewolf/U-2-Netp) (Apache-2.0, ~5 MB), via ONNX Runtime Web.

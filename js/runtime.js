@@ -3,7 +3,7 @@
 // onto a canvas at any size. Everything heavy lives in engine.js.
 
 import { createEngine } from './engine.js';
-import { grayFrom, inkMap, fieldMap, fieldRamp, smoothstep } from './tone.js';
+import { grayFrom, alphaFrom, inkMap, fieldMap, fieldRamp, smoothstep } from './tone.js';
 
 export const WORK_MAX = 1600;
 
@@ -21,22 +21,55 @@ export function loadImage(src) {
 // Browsers resample a decoded <img> and a <canvas> slightly differently, so
 // every input is first copied to a canvas at its natural size: the tool
 // (canvases) and the web kit (images) then take the exact same path.
+// Transparency is kept; grayFrom reads it over white, alphaFrom keeps it.
 function asCanvas(image) {
   const w = image.naturalWidth || image.width, h = image.naturalHeight || image.height;
   const c = document.createElement('canvas');
   c.width = w; c.height = h;
-  const ctx = c.getContext('2d');
-  ctx.fillStyle = '#fff'; // transparent pixels read as paper
-  ctx.fillRect(0, 0, w, h);
-  ctx.drawImage(image, 0, 0);
+  c.getContext('2d').drawImage(image, 0, 0); // alpha kept
   return c;
+}
+
+// Room around the artwork for the halftone's halo. Only sources whose
+// surroundings are empty (text, transparent images) get it; a photo keeps
+// its exact frame. Returns the margin in design units.
+function haloMargin(image, config) {
+  const empty = config.sourceType === 'text' || !!alphaFrom(image, 64, 64);
+  if (!empty) return 0;
+  const blur = config.blur + (config.field === 'on' ? config.fieldBlur : 0);
+  return Math.ceil(3 * blur + 2 * config.cell);
+}
+
+// Inset `image` by `margin` design units on every side (design width stays
+// config.width). Text margins are paper; image margins transparent / black.
+function inset(image, margin, config, fill) {
+  if (!margin) return image;
+  const p = Math.round((margin * image.width) / config.width);
+  const c = document.createElement('canvas');
+  c.width = image.width + 2 * p;
+  c.height = image.height + 2 * p;
+  const ctx = c.getContext('2d');
+  if (fill) { ctx.fillStyle = fill; ctx.fillRect(0, 0, c.width, c.height); }
+  ctx.drawImage(image, p, p);
+  return c;
+}
+
+// The canvas the design is made from: the source, plus a halo margin when
+// needed. The mask (if any) gets the same margin. Shared by every path.
+export function framedSource(image, mask, config) {
+  image = asCanvas(image);
+  const margin = haloMargin(image, config);
+  const text = config.sourceType === 'text';
+  return {
+    image: inset(image, margin, config, text ? '#fff' : null),
+    mask: mask ? inset(asCanvas(mask), margin, config, '#000') : null,
+  };
 }
 
 // image (and optional subject mask, white = subject) -> engine source.
 // The design is `config.width` units wide; height follows the image.
 export function prepareSource(image, mask, config) {
-  image = asCanvas(image);
-  if (mask) mask = asCanvas(mask);
+  ({ image, mask } = framedSource(image, mask, config));
   const iw = image.naturalWidth || image.width, ih = image.naturalHeight || image.height;
   const W = config.width;
   const H = Math.max(1, Math.round((W * ih) / iw));
@@ -44,6 +77,7 @@ export function prepareSource(image, mask, config) {
   const wt = Math.max(1, Math.round(W * ws)), ht = Math.max(1, Math.round(H * ws));
   return {
     gray: grayFrom(image, wt, ht),
+    alpha: alphaFrom(image, wt, ht),
     mask: mask ? grayFrom(mask, wt, ht) : null,
     wt, ht, W, H, ws,
   };
@@ -67,14 +101,13 @@ const LAYER_MAX = 2000; // longest side of the field layers
 export function fieldLayers(image, mask, config) {
   const ramp = fieldRamp(config);
   if (!ramp) return null;
-  image = asCanvas(image);
-  if (mask) mask = asCanvas(mask);
+  ({ image, mask } = framedSource(image, mask, config));
   const W = config.width;
   const H = Math.max(1, Math.round((W * image.height) / image.width));
   const k = Math.min(1, LAYER_MAX / Math.max(W, H));
   const pw = Math.max(1, Math.round(W * k)), ph = Math.max(1, Math.round(H * k));
   const ink = inkMap(grayFrom(image, pw, ph), mask ? grayFrom(mask, pw, ph) : null, pw, ph,
-    { ...config, blur: 0, field: 'off' }, k, null);
+    { ...config, blur: 0, field: 'off' }, k, null, alphaFrom(image, pw, ph));
   const field = fieldMap(config.pins, pw, ph);
   const photo = new ImageData(pw, ph), alpha = new ImageData(pw, ph);
   for (let i = 0, j = 0; i < ink.length; i++, j += 4) {

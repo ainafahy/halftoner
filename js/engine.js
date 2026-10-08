@@ -42,7 +42,7 @@ export function createEngine() {
       const tk = `${src.key}|${pick(s, TONE_KEYS)}`;
       if (tk !== toneKey) {
         field = s.field === 'on' && s.pins.length ? fieldMap(s.pins, src.wt, src.ht) : null;
-        ink = inkMap(src.gray, src.mask, src.wt, src.ht, s, src.ws, field);
+        ink = inkMap(src.gray, src.mask, src.wt, src.ht, s, src.ws, field, src.alpha);
         sample = makeSampler(ink, src.wt, src.ht, src.ws);
         toneKey = tk;
         geomKey = null;

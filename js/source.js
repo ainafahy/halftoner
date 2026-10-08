@@ -55,8 +55,7 @@ export function loadImageFile(file) {
       const c = document.createElement('canvas');
       c.width = w; c.height = h;
       const ctx = c.getContext('2d');
-      ctx.fillStyle = '#fff'; // transparent pixels read as paper
-      ctx.fillRect(0, 0, w, h);
+      // transparency is kept: transparent areas never get ink (see alphaFrom)
       ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(img, 0, 0, w, h);
       URL.revokeObjectURL(url);

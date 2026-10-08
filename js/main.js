@@ -71,7 +71,9 @@ function syncSource() {
   const maskCanvas = currentMask();
   const font = fontKey();
   if (state.sourceType === 'text') loadFont(font);
-  const key = `${sourceRev}|${state.sourceType}|${state.text}|${font}|${fontsReady.has(font)}|${state.width}|${maskCanvas ? state.subject : '-'}`;
+  // blur / field blur / cell set the halo margin around text and transparent images
+  const margin = `${state.blur}|${state.field === 'on' ? state.fieldBlur : 0}|${state.cell}`;
+  const key = `${sourceRev}|${state.sourceType}|${state.text}|${font}|${fontsReady.has(font)}|${state.width}|${maskCanvas ? state.subject : '-'}|${margin}`;
   if (key === sentSrcKey) return;
   lastSource = { key, ...prepareSource(currentSourceCanvas(), maskCanvas, state) };
   post({ type: 'source', source: lastSource });
@@ -136,7 +138,7 @@ const settled = () => new Promise((r) => (!inflight && !dirty ? r() : settleWait
 let layersKey = null, layersCache = null;
 function currentLayers() {
   const maskCanvas = currentMask();
-  const keys = ['sourceType', 'text', 'font', 'fontWeight', 'italic', 'width', 'brightness', 'contrast', 'gamma', 'blackPoint', 'whitePoint',
+  const keys = ['sourceType', 'text', 'font', 'fontWeight', 'italic', 'width', 'blur', 'fieldBlur', 'cell', 'brightness', 'contrast', 'gamma', 'blackPoint', 'whitePoint',
     'invert', 'subject', 'maskEdge', 'maskKeep', 'field', 'pins', 'fieldSolid', 'fieldSoft'];
   const key = `${sourceRev}|${maskCanvas ? 'm' : '-'}|${fontsReady.has(fontKey())}|${JSON.stringify(keys.map((k) => state[k]))}`;
   if (key !== layersKey) {

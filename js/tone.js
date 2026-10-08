@@ -18,6 +18,24 @@ export function grayFrom(src, w, h) {
   return g;
 }
 
+// Opacity per pixel (0..1), or null when the image is fully opaque.
+// Transparent areas of an uploaded PNG / SVG / WebP never get ink.
+export function alphaFrom(src, w, h) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const ctx = c.getContext('2d', { willReadFrequently: true });
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(src, 0, 0, w, h);
+  const d = ctx.getImageData(0, 0, w, h).data;
+  const a = new Float32Array(w * h);
+  let clear = false;
+  for (let i = 0, j = 3; i < a.length; i++, j += 4) {
+    a[i] = d[j] / 255;
+    if (d[j] < 250) clear = true;
+  }
+  return clear ? a : null;
+}
+
 // Three box passes approximate a gaussian.
 export function boxBlur(src, w, h, r) {
   r = Math.round(r);
@@ -118,9 +136,27 @@ export function mapSampler(arr, w, h, workScale) {
 // Returns "ink" per pixel: 0 = paper, 1 = full ink.
 // `mask` (0..1 per pixel, or null) limits ink to the subject or background.
 // `field` (0..1 per pixel, or null) adds a blur that grows with the field.
-export function inkMap(gray, mask, w, h, s, workScale, field) {
-  let g = s.blur > 0 ? boxBlur(gray, w, h, s.blur * workScale) : gray;
-  if (field && s.fieldBlur > 0) g = fieldBlur(g, w, h, field, s.fieldBlur * workScale);
+// `alpha` (0..1 per pixel, or null) is the source's own transparency.
+export function inkMap(gray, mask, w, h, s, workScale, field, alpha) {
+  // With transparency, blur colour and opacity together (premultiplied) so
+  // the white read under transparent pixels can't bleed into the shape.
+  // grayFrom composites over white: gray = c·a + (1 − a), so c·a = gray − (1 − a).
+  let g = gray, a = alpha;
+  if (a) {
+    g = new Float32Array(gray.length);
+    for (let i = 0; i < g.length; i++) g[i] = gray[i] - (1 - a[i]);
+  }
+  if (s.blur > 0) {
+    g = boxBlur(g, w, h, s.blur * workScale);
+    if (a) a = boxBlur(a, w, h, s.blur * workScale);
+  }
+  if (field && s.fieldBlur > 0) {
+    g = fieldBlur(g, w, h, field, s.fieldBlur * workScale);
+    if (a) a = fieldBlur(a, w, h, field, s.fieldBlur * workScale);
+  }
+  if (a) {
+    for (let i = 0; i < g.length; i++) g[i] = a[i] > 1e-3 ? Math.min(1, Math.max(0, g[i] / a[i])) : 1;
+  }
   const out = new Float32Array(g.length);
   const bp = s.blackPoint / 100;
   const wp = Math.max(bp + 0.001, s.whitePoint / 100);
@@ -147,6 +183,10 @@ export function inkMap(gray, mask, w, h, s, workScale, field) {
     } else {
       out[i] = s.invert ? L : 1 - L;
     }
+  }
+  if (a) {
+    // transparent areas stay empty; blurred edges fade with the opacity
+    for (let i = 0; i < out.length; i++) out[i] *= a[i];
   }
   if (mask && s.subject !== 'off') {
     const m = s.maskEdge > 0 ? boxBlur(mask, w, h, s.maskEdge * workScale * 0.5) : mask;

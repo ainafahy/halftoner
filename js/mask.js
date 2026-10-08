@@ -31,6 +31,8 @@ export async function segment(source, kind, onStatus) {
   const c = document.createElement('canvas');
   c.width = w; c.height = h;
   const ctx = c.getContext('2d', { willReadFrequently: true });
+  ctx.fillStyle = '#fff'; // the model expects an opaque image
+  ctx.fillRect(0, 0, w, h);
   ctx.drawImage(source, 0, 0, w, h);
   const { data } = ctx.getImageData(0, 0, w, h);
 
